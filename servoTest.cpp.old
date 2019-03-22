@@ -1,0 +1,66 @@
+#include <Arduino.h>
+
+class Servo
+{
+	private:
+		uint8_t pin;
+		float pulseWidth;
+		float period;
+		float maxPW;
+		float minPW;
+	public:
+		Servo(int pin, float pw, float T): pin(pin), pulseWidth(pw), period(T){
+			pinMode(pin,OUTPUT);
+			digitalWrite(pin,0);
+		}
+		void update() {
+			digitalWrite(pin,1);
+			delayMicroseconds(pulseWidth*1000);
+			digitalWrite(pin,0);
+			delayMicroseconds((period-pulseWidth)*1000);
+		}
+		void setPW(float PW){
+			pulseWidth = constrain(PW, minPW, maxPW);
+		}
+		float getPW(){
+			return pulseWidth;
+		}
+};
+
+void setup() {
+	init();
+	Serial.begin(9600);
+	Serial.println("Serial is ready");
+}
+
+int main() {
+	setup();
+	
+	Servo sOne(12,1,20);
+	
+	char buffer[10];
+	char rx_byte;
+	int id = 0;
+	Serial.flush();
+	Serial.println("Variables are ready");
+	while (true){
+		if (Serial.available() > 0) {
+			rx_byte = Serial.read();
+			if ((rx_byte == '.') or ((rx_byte >= '0') && (rx_byte <= '9'))) {
+				Serial.print(rx_byte);
+				buffer[id++] = rx_byte;
+			}  else if (rx_byte == '\b') {
+				id --;
+				Serial.print('\b');
+			}  else if (rx_byte == '\r' or rx_byte == '\n') {
+				buffer[id++] = 0;
+				Serial.println();
+				Serial.print("Set PW to: ");
+				Serial.println(atof(buffer));
+				id = 0;
+				sOne.setPW(atof(buffer));
+			} 
+		}
+		sOne.update();
+	}
+}
