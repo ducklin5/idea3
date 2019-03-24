@@ -1,0 +1,56 @@
+// matrix to keep track of connected comps
+Mat connected(binImg.size(), CV_8UC1, 0);
+// current compenent marker
+int currentMark = 0;
+// number of objects found
+int objectCount = 0;
+
+// where the output goes
+Mat outImg = binImg.clone();
+
+// row-major pixel scan
+for (int y = 0; y < outImg.rows; y++){
+	for (int x = 0; x < outImg.cols; x++){
+
+		// if pixel is white then
+		if (outImg.at<uchar>(y,x)){
+
+			// new object found
+			objectCount ++;
+
+			// focus on that pixel
+			vector<pixel> focus = {pixel(y,x)};
+			connected.at<uchar>(y,x) = currentMark;
+
+			while(focus.size() > 0){
+				vector<pixel> neighbours;
+				// for each focus pixel
+				for(auto fp : focus){
+					// set each focus pixel to background
+					outImg.at<uchar>(fp.row, fp.col) = 0;
+					// add all its neigbours
+					for(int j = -1; j <= 1; j++)
+						for(int i = -1; i <= 1; i++)
+							neighbours.push_back(pixel(fp.row+j,fp.col+i));
+				}
+				// remove duplicates
+				neighbours.erase( unique( neighbours.begin(), neighbours.end() ), neighbours.end() );
+				// focus on foreground eighbours
+				focus = {};
+				for(auto n : neighbours){
+					if (outImg.at<uchar>(n.row, n.col)){
+						focus.push_back(n);
+					}
+				}
+
+				for(auto fp: focus){
+					connected.at<uchar>(fp.col, fp.row) = currentMark;
+				}
+
+			}
+			currentMark += 20;
+		}
+	}
+}
+return outImg;
+

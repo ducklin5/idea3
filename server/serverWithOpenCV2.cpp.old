@@ -1,8 +1,12 @@
+/**
+  Copyright 2017 by Satya Mallick ( Big Vision LLC )
+http://www.learnopencv.com
+ **/
+
 #include <opencv2/opencv.hpp>
-#include <algorithm>
+#include <vector>
 #include <set>
 #include <map>
-
 
 using namespace std;
 using namespace cv;
@@ -34,7 +38,7 @@ Mat threshold (Mat img, int radius) {
 			//cout << " out of : ";
 			//cout << "( " << img.cols << ", " << img.rows << ")\n"; 
 			// get the average value of surrounding pixels
-			float avg = 0;
+			int avg = 0;
 			int count = 0;
 
 			// loop through surrounding pixels
@@ -58,12 +62,11 @@ Mat threshold (Mat img, int radius) {
 }
 
 
-Mat blobExtract( Mat binImg, map<int,int>& stats){
+Mat blobExtract( Mat binImg ){
 	Mat blobImg(binImg.size(), CV_32SC1, Scalar(0));
 	int label = 0;
 	map <int,set<int>> labelEqvs;
-	
-	// first pass
+
 	for (int y = 0; y < binImg.rows; y++){
 		for (int x = 0; x < binImg.cols; x++){
 			uchar& currentPx = binImg.at<uchar>(y,x);
@@ -102,11 +105,12 @@ Mat blobExtract( Mat binImg, map<int,int>& stats){
 					}
 				}
 			}
-			//cout << "label: " << label << endl;
+			cout << "label: " << label << endl;
 		}
 	}
 
-//	for (auto const& eqv : labelEqvs) {
+//	for (auto const& eqv : labelEqvs)
+//	{
 //		cout << eqv.first << ':';
 //		for (auto const& lbl : eqv.second){
 //			cout << lbl << ", ";
@@ -114,43 +118,16 @@ Mat blobExtract( Mat binImg, map<int,int>& stats){
 //		cout << std::endl ;
 //	}
 //
-	map <int,int> simpleEqvs;
-	
-	for (auto const& eqv: labelEqvs){
-		int crnt = eqv.first;
-		while (labelEqvs[crnt].size() > 0){
-			if(*labelEqvs[crnt].begin() < crnt){
-				crnt = *labelEqvs[crnt].begin();
-			} else {
-				break;
-			}
-		}
-		simpleEqvs[eqv.first] = crnt;
-	}
-//	
-//	for (auto const& eqv : simpleEqvs) {
-//		cout << eqv.first << " : ";
-//		cout << eqv.second << '\n';
-//	}
-//
-
+	set<int> remaining;
 	for (int y = 0; y < blobImg.rows; y++){
 		for (int x = 0; x < blobImg.cols; x++){
 			int& currentLabel = blobImg.at<int>(y,x);
 			// get the first element of the set/ the lowest equivalent
-			currentLabel = simpleEqvs[currentLabel];
-			if (stats.count(currentLabel)==0) {
-				stats[currentLabel] = 1;
-			} else {
-				stats[currentLabel]++;
-			}
+			currentLabel = *labelEqvs[currentLabel].begin();
+			remaining.insert(currentLabel);
 		}
 	}
-//	for (auto const& eqv : stats) {
-//		cout << eqv.first << " : ";
-//		cout << eqv.second << '\n';
-//	}
-	cout << stats.size() << " labels\n";;
+	cout << remaining.size() << " labels\n";;
 	return blobImg;
 }
 
@@ -158,36 +135,18 @@ int main(int argc, char** argv )
 {
 	// Read image
 	Mat orig = imread(argv[1], IMREAD_COLOR );
-	imshow("Orig", orig);
 
-	
 	Mat gray;
 	cvtColor(orig, gray, CV_RGB2GRAY);
 
 	// radiud based thersholding
-	Mat black = threshold(gray, 4);
+	Mat black = threshold(gray, 2);
+	Mat blobbed = blobExtract(black);
 
 	// blob extraction - https://en.wikipedia.org/wiki/Connected-component_labeling
 	// graph theory
-	map<int, int> stats;
-	Mat blobbed = blobExtract(black, stats);
-	
-	//https://stackoverflow.com/questions/30611709/find-element-with-max-value-from-stdmap
-	stats[0] = 0;
-	auto maxlbl_count = std::max_element(stats.begin(), stats.end(),
-			[](const pair<int, int>& p1, const pair<int, int>& p2) {return p1.second < p2.second; }
-			);
-	int maxlbl = maxlbl_count -> first;
-	
-	cout << "maxlbl: " << maxlbl << endl;
-	for (int y = 0; y < blobbed.rows; y++){
-		for (int x = 0; x < blobbed.cols; x++){
-			int& current = blobbed.at<int>(y,x);
-			current = ( current == maxlbl? 2550000 : 0);
-		}
-	}	
-	
 
+	imshow("Orig", orig);
 	imshow("Gray", gray);
 	imshow("B&W", black);
 	imshow("Blobbed", blobbed);
