@@ -289,6 +289,7 @@ int main(int argc, char** argv )
 	for(int y = 0; y<sdkCols; y++){
 		for(int x = 0; x<sdkCols; x++){
 			pBoxes[y][x] = puzzle(Rect(xv[x], yv[y], xv[x+1]-xv[x], yv[y+1]-yv[y]));
+			pBoxes[y][x] = threshold(pBoxes[y][x], 6);
 			imshow(to_string(y*sdkCols+x), pBoxes[y][x]);
 		}
 	}
