@@ -196,7 +196,7 @@ int main(int argc, char** argv )
 	// this is where the edit image will go
 	Mat majorBlob(blobs.size(), CV_8UC1, Scalar(0));
 	// save the corners of the image
-	vector<Point> imageConers = {
+	vector<Point2f> imageConers = {
 		Point(0,0),
 		Point(blobs.cols, 0),
 		Point(blobs.cols, blobs.rows),
@@ -215,7 +215,6 @@ int main(int argc, char** argv )
 			if (current == maxlbl){
 				mcurrent = 1;
 				for(int i=0; i<4; i++){
-					cout << imageConers[i].x << ", " << imageConers[i].y << "\n";
 					dists[i].at<int>(y,x) = abs(y - imageConers[i].y) + abs(x - imageConers[i].x);
 				}
 			} else {
@@ -223,26 +222,39 @@ int main(int argc, char** argv )
 			}
 		}
 	}
-	imshow("majorBlob", majorBlob);
+	imshow("majorBlob", majorBlob * 255);
 	
-	for(int i = 0; i < 4; i++){
-		Mat test;
-		dists[i].convertTo(test, CV_8UC1, 0.2);
-		imshow(to_string(i), test);
-	}
+//	for(int i = 0; i < 4; i++){
+//		Mat test;
+//		dists[i].convertTo(test, CV_8UC1, 0.2);
+//		imshow(to_string(i), test);
+//	}
 
 	// find the minimum for each corner
-	Mat mask = majorBlob.clone();
-	vector<Point> sdkCorners (4);
+	Mat majorBlobC = majorBlob.clone();
+	Point sdkCorners[4];
 	for(int i = 0; i < 4; i++){
-		minMaxLoc(dists[i], NULL, NULL, &sdkCorners[i], NULL, mask);
-		circle(majorBlob, sdkCorners[i], 10, 1);
+		minMaxLoc(dists[i], NULL, NULL, &sdkCorners[i], NULL, majorBlob);
+		circle(majorBlobC, sdkCorners[i], 10, 1);
 	}
-	imshow("majorBlobCorners", majorBlob*255);
+	imshow("majorBlobCorners", majorBlobC*255);
 	
-	Mat HTranform;
-	findHomography(imageConers, sdkCorners, HTranform);
+	vector<Point2f> sdkCornersF (4);
+	for(int i = 0; i < 4; i++)
+		sdkCornersF[i] = sdkCorners[i];
+	
+	imageConers = {
+		Point2f(0,0),
+		Point2f(240, 0),
+		Point2f(240, 240),
+		Point2f(0, 240)
+	};
 
+	Mat HTranform = findHomography(sdkCornersF, imageConers,  RANSAC);
+	
+	Mat puzzle = Mat( Size(240, 240), CV_32FC1, Scalar(0));
+	warpPerspective(black, puzzle, HTranform, Size(240,240));
+	imshow("puzzle", puzzle);
 
 	waitKey(0);
 	exit(0);
