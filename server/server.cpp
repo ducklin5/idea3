@@ -240,6 +240,8 @@ int main(int argc, char** argv )
 	}
 	imshow("majorBlobCorners", majorBlob*255);
 	
+	Mat HTranform;
+	findHomography(imageConers, sdkCorners, HTranform);
 
 
 	waitKey(0);
