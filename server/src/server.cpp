@@ -7,24 +7,6 @@
 using namespace std;
 using namespace cv;
 
-void usefulCode(){
-	//	Mat channels[3];
-	//	split(orig, channels);
-
-
-
-	//	Mat green = orig.clone();
-	//	for (int i = 0; i < green.rows; i++){
-	//		for (int j = 0; j < green.cols; j++){
-	//			auto bgr = green.at<Vec3b>(i,j).val;
-	//			bgr[0] = 0;
-	//			bgr[1] = (bgr[1] < 128 ) * 255;
-	//			bgr[2] = 0;
-	//		}
-	//	}
-
-}
-
 Mat threshold (Mat img, int radius) {
 	Mat outImg(img.size(), CV_8UC1);
 	// for each pixel
@@ -161,16 +143,21 @@ bool comparePair2 (const pair<fType, sType>& p1, const pair<fType, sType>& p2){
 	return p1.second < p2.second;
 }
 
+bool fits (int num, set<int> vec, int thresh ){
+	bool pass = true;
+	for( auto elem : vec )
+		if (abs (num - elem) < thresh ) { pass = false; break; }
+
+	return pass;
+}
+
 int main(int argc, char** argv )
 {
 	// Read image
 	Mat orig = imread(argv[1], IMREAD_COLOR );
-	imshow("Orig", orig);
-
 	
 	Mat gray;
 	cvtColor(orig, gray, CV_RGB2GRAY);
-	imshow("Gray", gray);
 
 	// radius based thersholding
 	Mat black = threshold(gray, 5);
@@ -179,7 +166,6 @@ int main(int argc, char** argv )
 	// graph theory
 	map<int, int> stats;
 	Mat blobs = blobExtract(black, stats);
-	imshow("B&W", black);
 	
 	// find the blob label with the most elements
 	//https://stackoverflow.com/questions/30611709/find-element-with-max-value-from-stdmap
@@ -188,8 +174,6 @@ int main(int argc, char** argv )
 	int maxlbl = maxlbl_count -> first;
 	cout << "maxlbl: " << maxlbl << endl;
 	
-	imshow("Blobs", blobs);
-	waitKey('0');
 	// isolate the largest blob
 	// and calculate the distances from the img corners to the largest blob pixels
 
@@ -222,7 +206,6 @@ int main(int argc, char** argv )
 			}
 		}
 	}
-	imshow("majorBlob", majorBlob * 255);
 	
 //	for(int i = 0; i < 4; i++){
 //		Mat test;
@@ -231,30 +214,84 @@ int main(int argc, char** argv )
 //	}
 
 	// find the minimum for each corner
-	Mat majorBlobC = majorBlob.clone();
 	Point sdkCorners[4];
 	for(int i = 0; i < 4; i++){
 		minMaxLoc(dists[i], NULL, NULL, &sdkCorners[i], NULL, majorBlob);
-		circle(majorBlobC, sdkCorners[i], 10, 1);
 	}
-	imshow("majorBlobCorners", majorBlobC*255);
 	
 	vector<Point2f> sdkCornersF (4);
 	for(int i = 0; i < 4; i++)
 		sdkCornersF[i] = sdkCorners[i];
 	
+	Size pSize(240,240);
+	Mat puzzle = Mat( pSize, CV_32FC1, Scalar(0));
+
 	imageConers = {
 		Point2f(0,0),
-		Point2f(240, 0),
-		Point2f(240, 240),
-		Point2f(0, 240)
+		Point2f(pSize.width, 0),
+		Point2f(pSize.height, pSize.width),
+		Point2f(0, pSize.height)
 	};
 
 	Mat HTranform = findHomography(sdkCornersF, imageConers,  RANSAC);
 	
-	Mat puzzle = Mat( Size(240, 240), CV_32FC1, Scalar(0));
-	warpPerspective(black, puzzle, HTranform, Size(240,240));
+	warpPerspective(gray, puzzle, HTranform, pSize);
 	imshow("puzzle", puzzle);
+	 
+	cv::Mat puzzleC;
+	cv::Canny(puzzle,puzzleC,30,20);
+	
+	Mat puzzleL = Mat( pSize, CV_32FC1, Scalar(0));
+
+    vector<Vec2f> lines;
+	HoughLines(puzzleC, lines, 1, CV_PI/180, 80, 0, 0 );
+	
+	set<int> xs = {0, pSize.width-1};
+	set<int> ys = {0, pSize.height-1};
+	for( size_t i = 0; i < lines.size(); i++ ){
+		float rho = lines[i][0], theta = lines[i][1];
+		double a = cos(theta), b = sin(theta);
+		int x0 = a*rho, y0 = b*rho;
+		
+		int gap = 15;
+		int degThresh = 2;
+		theta  = theta * 180/CV_PI;
+
+		if( (theta < degThresh or 180 - theta < degThresh )and fits(x0, xs, gap)) {
+			xs.insert(x0);
+		}
+		
+		if( abs(theta - 90) < degThresh and fits(y0, ys, gap)) {
+			ys.insert(y0);
+		}
+
+//		if (draw){
+//			Point pt1, pt2;
+//			pt1.x = cvRound(x0 + 1000*(-b));
+//			pt1.y = cvRound(y0 + 1000*(a));
+//			pt2.x = cvRound(x0 - 1000*(-b));
+//			pt2.y = cvRound(y0 - 1000*(a));
+//			line( puzzleL, pt1, pt2, 255, 1);
+//		}
+	}
+	imshow("puzzleC", puzzleC);
+	//imshow("puzzleL", puzzleL);
+	vector<int> xv(xs.begin(), xs.end());
+	vector<int> yv(ys.begin(), ys.end());
+	
+	int sdkCols = yv.size()-1;
+	int sdkRows = xv.size()-1;
+	cout << "sdkCols: " << sdkCols << "\n";
+	cout << "sdkRows: " << sdkRows << "\n";
+
+	Mat pBoxes[sdkCols][sdkRows];
+
+	for(int y = 0; y<sdkCols; y++){
+		for(int x = 0; x<sdkCols; x++){
+			pBoxes[y][x] = puzzle(Rect(xv[x], yv[y], xv[x+1]-xv[x], yv[y+1]-yv[y]));
+			imshow(to_string(y*sdkCols+x), pBoxes[y][x]);
+		}
+	}
 
 	waitKey(0);
 	exit(0);
