@@ -11,9 +11,9 @@ struct Relation{
 	Cell* from;
 	Cell* to;
 	int k;
-	Relation( Cell& fromC, Cell& toC, int kvar = 0 ) {
-		from = &fromC;
-		to = &toC;
+	Relation( Cell* fromC, Cell* toC, int kvar = 0 ) {
+		from = fromC;
+		to = toC;
 		k = kvar;
 	}
 };
@@ -30,8 +30,8 @@ struct Cell{
 		k = kvar;
 		n = nvar;
 	}
-	void addRelation(Cell &to, int kVar=0){
-		Relation newRelation(*this, to, kVar);
+	void addRelation(Cell* to, int kVar=0){
+		Relation newRelation(this, to, kVar);
 		relations.push_back(newRelation);
 	}
 	bool operator==(const Cell& b) const{ 
@@ -41,38 +41,33 @@ struct Cell{
 
 };
 
-namespace std
-{
-	template <>
-		struct hash<Cell>
-		{
-			size_t operator()(const Cell& b) const
-			{
-				return ((hash<int>()(b.i) ^ (hash<int>()(b.j) << 1)) >> 1);
-			}
-		};
-		
-}
 ostream& operator<< (ostream& os, const Cell& sElem) {
-	os << sElem.i << ", " << sElem.j << " [" << sElem.k << "]";
+	os <<"<"<< sElem.i << ", " << sElem.j << ", " << sElem.n << ">[" << sElem.k << "]";
 	return os;
 }
 
 class CellGraph{
 	public:
-		void addCell(Cell &inCell){
+		Cell* addCell(int i, int j){
+			// create a new cell
+			Cell* newCellPtr = new Cell(i,j);
+			// check if a pointer to that cell already exists
+			for(auto cellPtr : cells)
+				if (*cellPtr == *newCellPtr) return cellPtr;
 			// inserts a new cell into the graph
-			Cell* cellPtr = &inCell;
-			cells.insert(cellPtr);
+			cells.push_back(newCellPtr);
+			return newCellPtr;
 		}
-		void addRelation(Cell &cellA, Cell &cellB){
-			addCell(cellA); addCell(cellB);
+		void addRelation(Cell* cellA, Cell* cellB){
 			
-			cellA.addRelation(cellA);
-			cellB.addRelation(cellB);
+			Cell* A = addCell(cellA->i, cellA->j);
+			Cell* B = addCell(cellB->i, cellB->j);
+			
+			A->addRelation(B);
+			B->addRelation(A);
 		}
 
-		unordered_set<Cell*> getCells() {
+		vector<Cell*> getCellPtrs() {
 			return cells;
 		}
 
@@ -80,26 +75,15 @@ class CellGraph{
 			for(auto cell: cells){
 				cout << *cell;
 				cout << " --> ";
-				for(auto relation:cell->relations){
-					cout << *relation.to;
+				for(auto r:cell->relations){
+					cout << *r.to;
 					cout << "; ";
 				}
 				cout << "\n";
 			}
 		}
 	private:
-		unordered_set<Cell*> cells;
+		vector<Cell*> cells;
 };
 
-//int main(){
-//	CellGraph sdk;
-//	Cell someCell(0,0,0);
-//	sdk.addCell(someCell);
-//	Cell someCell2(1,0,0);
-//	sdk.addCell(someCell2);
-//	sdk.addRelation(someCell, someCell2);
-//
-//	sdk.print();
-//
-//
-//}
+

@@ -12,12 +12,11 @@ class Sudoku {
 			cols = c;
 			for(int i = 0; i < cols; i++){
 				for(int j = 0; j < rows; j++){
-					unordered_set<Cell*> existing = graph.getCells();
-					Cell cellA(i,j, 3*(j/3) + (i/3));
-					graph.addCell(cellA);
+					vector<Cell*> existing = graph.getCellPtrs();
+					Cell* cellA = graph.addCell(i,j);
 					for ( auto cellPtr : existing){
-						if (cellA.i == cellPtr->i or cellA.j == cellPtr->j){
-							graph.addRelation(cellA, *cellPtr);
+						if (cellA->i == cellPtr->i or cellA->j == cellPtr->j){
+							graph.addRelation(cellA, cellPtr);
 						}
 					}
 				}
