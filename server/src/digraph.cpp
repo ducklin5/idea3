@@ -21,8 +21,8 @@ struct Relation{
 };
 
 struct Cell{
-	int x;
-	int y;
+	const int x;
+	const int y;
 	int n;
 	int k;
 	vector<Relation> relations;
