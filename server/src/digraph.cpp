@@ -59,12 +59,12 @@ class CellGraph{
 			assert (exists&& "No such cell in graph");
 			return cells[make_pair(x,y)];
 		}
-		void addRelation(Cell* cellA, Cell* cellB){
+		void addRelation(Cell* cellA, Cell* cellB, int k){
 			Cell* A = addCell(cellA->x, cellA->y);
 			Cell* B = addCell(cellB->x, cellB->y);
 			
-			A->addRelation(B);
-			B->addRelation(A);
+			A->addRelation(B, k);
+			B->addRelation(A, k);
 		}
 
 		vector<Cell*> getCellPtrs() {
@@ -88,3 +88,18 @@ class CellGraph{
 	private:
 		map<pair<int,int>, Cell*> cells;
 };
+
+//int main(){
+//
+//	CellGraph cg;
+//	for(int i= 0; i<10; i++)
+//		for(int j=0; j<10; j++)
+//			cg.addCell(i,j);
+//
+//	for(int i = 0; i < 10; i++){
+//		if(i == 3 ) continue;
+//		Cell* A = cg.getCell(i, 0);
+//		cout << *A;
+//	}
+//
+//}
