@@ -36,13 +36,8 @@ struct Cell{
 		Relation newRelation(this, to, kVar);
 		relations.push_back(newRelation);
 	}
-	bool operator==(const Cell& b) const{ 
-		return (b.x == x && b.y == y);
-	}
 	friend std::ostream& operator<<(std::ostream&, const Cell&);
-
 };
-
 ostream& operator<< (ostream& os, const Cell& sElem) {
 	os <<"<"<< sElem.x << ", " << sElem.y << ", " << sElem.n << ">[" << sElem.k << "]";
 	return os;
