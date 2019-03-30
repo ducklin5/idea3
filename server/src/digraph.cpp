@@ -1,12 +1,14 @@
-#include <unordered_map>
-#include <unordered_set>
+#include <map>
 #include <vector>
-#include <set>
+#include <utility>
 #include <iostream>
+#include <cassert>
 
 using namespace std;
 
+// A vertex structure
 struct Cell;
+// An edge structure
 struct Relation{
 	Cell* from;
 	Cell* to;
@@ -19,14 +21,14 @@ struct Relation{
 };
 
 struct Cell{
-	int i;
-	int j;
+	int x;
+	int y;
 	int n;
 	int k;
 	vector<Relation> relations;
-	Cell(int ivar, int jvar, int nvar = 0, int kvar = 0) {
-		i = ivar;
-		j = jvar;
+	Cell(int xvar, int yvar, int nvar = 0, int kvar = 0) {
+		x = xvar;
+		y = yvar;
 		k = kvar;
 		n = nvar;
 	}
@@ -35,47 +37,53 @@ struct Cell{
 		relations.push_back(newRelation);
 	}
 	bool operator==(const Cell& b) const{ 
-		return (b.i == i && b.j == j);
+		return (b.x == x && b.y == y);
 	}
 	friend std::ostream& operator<<(std::ostream&, const Cell&);
 
 };
 
 ostream& operator<< (ostream& os, const Cell& sElem) {
-	os <<"<"<< sElem.i << ", " << sElem.j << ", " << sElem.n << ">[" << sElem.k << "]";
+	os <<"<"<< sElem.x << ", " << sElem.y << ", " << sElem.n << ">[" << sElem.k << "]";
 	return os;
 }
 
 class CellGraph{
 	public:
-		Cell* addCell(int i, int j){
-			// create a new cell
-			Cell* newCellPtr = new Cell(i,j);
+		Cell* addCell(int x, int y, int n = 0){
 			// check if a pointer to that cell already exists
-			for(auto cellPtr : cells)
-				if (*cellPtr == *newCellPtr) return cellPtr;
+			if (cells.count({x,y}) > 0)
+				return cells[{x,y}];
 			// inserts a new cell into the graph
-			cells.push_back(newCellPtr);
+			Cell* newCellPtr = new Cell(x,y,n);
+			cells[{x,y}] = newCellPtr;
 			return newCellPtr;
 		}
+		Cell* getCell(int x, int y){
+			bool exists = cells.count({x,y}) > 0; 
+			assert (exists&& "No such cell in graph");
+			return cells[make_pair(x,y)];
+		}
 		void addRelation(Cell* cellA, Cell* cellB){
-			
-			Cell* A = addCell(cellA->i, cellA->j);
-			Cell* B = addCell(cellB->i, cellB->j);
+			Cell* A = addCell(cellA->x, cellA->y);
+			Cell* B = addCell(cellB->x, cellB->y);
 			
 			A->addRelation(B);
 			B->addRelation(A);
 		}
 
 		vector<Cell*> getCellPtrs() {
-			return cells;
+			vector<Cell*> cellPtrVec;
+			 for(auto elem : cells)
+				 	 cellPtrVec.push_back(elem.second);
+			return cellPtrVec;
 		}
 
 		void print(){
-			for(auto cell: cells){
-				cout << *cell;
+			for(auto elem: cells){
+				cout << *elem.second;
 				cout << " --> ";
-				for(auto r:cell->relations){
+				for(auto r:elem.second->relations){
 					cout << *r.to;
 					cout << "; ";
 				}
@@ -83,7 +91,5 @@ class CellGraph{
 			}
 		}
 	private:
-		vector<Cell*> cells;
+		map<pair<int,int>, Cell*> cells;
 };
-
-
