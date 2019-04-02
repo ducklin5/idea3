@@ -55,8 +55,11 @@ class CellGraph{
 			return newCellPtr;
 		}
 		Cell* getCell(int x, int y){
-			bool exists = cells.count({x,y}) > 0; 
-			assert (exists&& "No such cell in graph");
+			bool exists = cells.count({x,y}) > 0;
+			if(!exists){
+				cout << x << ", " << y;
+			}
+			assert (exists && "No such cell in graph");
 			return cells[make_pair(x,y)];
 		}
 		void addRelation(Cell* cellA, Cell* cellB, int k){

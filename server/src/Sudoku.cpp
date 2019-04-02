@@ -2,6 +2,8 @@
 #include <set>
 #include "digraph.cpp"
 
+bool verbose = 0;
+
 typedef map<int,vector<Cell*>> intVecCellMap;
 class Sudoku {
 	private:
@@ -35,7 +37,7 @@ class Sudoku {
 			Cell* B = graph.getCell(x,y);
 			B->k = k;
 		}
-		
+
 		void populate(vector<int> input){
 			for(int y = 0; y < rows; y++){
 				for(int x = 0; x < cols; x++){
@@ -61,24 +63,31 @@ class Sudoku {
 			relatives.erase(input);
 			return relatives;
 		}
-
+		void hLine(){
+			cout << "  ";
+			for(int i = 0; i < cols; i++)
+				cout << "--------";
+			cout << "\n";
+		}
 		void draw (){
 			for(int j = 0; j < rows; j++){
 				if(j % gheight == 0){
-					for(int j = 0; j < rows; j++)
-						cout << "---------";
-					cout << "\n";
+					hLine();
 				}
-				for(int i = 0; i < rows; i++){
+				for(int i = 0; i < cols; i++){
 					if(i % gwidth == 0)
 						cout << " |";
-					cout << "\t" << graph.getCell(i,j)->k;
+					int k = graph.getCell(i,j)->k;
+					cout << "\t";
+					if(k==0) cout << "*";
+					else cout << k;
+
+					if(i+1 == cols)
+						cout << " |";
 				}
 				cout << "\n";
 			}
-			for(int j = 0; j < rows; j++)
-				cout << "---------";
-			cout << "\n";
+			hLine();
 		}
 
 		void solveStep1(){
@@ -100,7 +109,7 @@ class Sudoku {
 			}
 		}
 
-		intVecCellMap solveStep2(){
+		intVecCellMap getPsbltyMap(){
 			int kolors = gwidth * gheight;
 			vector<Cell*> cells = graph.getCellPtrs();
 			intVecCellMap psbltyMap;
@@ -110,39 +119,44 @@ class Sudoku {
 				int psbltyCount = kolors - cnvrgCount;
 				psbltyMap[psbltyCount].push_back(A);
 			}
-//			for(auto elem:psbltyMap){
-//				cout << elem.first << " #:# ";
-//				for(auto cell:elem.second){
-//					cout << *cell << "; ";
-//				}
-//				cout << "\n";
-//			}
 			return psbltyMap;
 		}
 
 		void solveStep3(intVecCellMap psbltyMap){
 			// get the cell
-			for (auto pCell : psbltyMap[1]){
-				cout << "one solution: " << *pCell << "\n";
+			for (auto pCell:psbltyMap[1]){
+				if(verbose) cout << "one solution: " << *pCell << "\n";
 				set<int> connectedKs;
 				for(auto r:pCell->relations){
 					connectedKs.insert(r.k);
 				}
 				int newK;
 				for(newK = 1; connectedKs.count(newK); newK++);
-				cout << "solution: " << newK << "\n";
+
+				if(verbose) cout << "solution: " << newK << "\n";
 				pCell->k = newK;
 			}
+
 		}
 
 		void solve(){
 			bool solved = false;
 			while(!solved){
-				this->draw();
 				// make all neccesary relations
 				solveStep1();
 				// get the psbltyMap
-				intVecCellMap psbltyMap = solveStep2();
+				intVecCellMap psbltyMap = getPsbltyMap();
+				if(verbose){
+					cout << "----------\nPossibilty Map\n----------\n";
+					for(auto p:psbltyMap){
+						cout << p.first << ": ";
+						for(auto v:p.second){
+							cout << *v << "; ";
+						}
+						cout << "\n";
+					}
+					cout << "----------\n";
+				}
 				if(psbltyMap.size() == 0){
 					solved = true; break;
 				} else if ( psbltyMap.count(0) ){
@@ -151,56 +165,98 @@ class Sudoku {
 
 				// check if there are Cells with only 1 possible solution
 				int leastKey = psbltyMap.begin()->first;
-				cout << "least posibilities: " << leastKey << "\n";
-				cout << "candidates: ";
-				for( auto cell : psbltyMap[leastKey] ){
-					cout << *cell << "; ";
-				}
-				cout << "\n";
+				if(verbose) cout << "least posibilities: " << leastKey << "\n";
 				if (leastKey == 1){
 					solveStep3(psbltyMap);
 				} else {
 					vector<Cell*> lPsbltyCells = psbltyMap[leastKey];
 					// get the best candidate
-					int maxCount = 0; Cell* lPsbltyCell;
+					int maxCount = -1; Cell* lPsbltyCell;
 					for(auto lpCell : lPsbltyCells){
-						int count = 0;
-						for(auto lpcr : getRelatives(lpCell))
-							if(lpcr->k == 0) count++;
-						if(count > maxCount){
+						int filledCount = 0;
+						for(auto lpcr : getRelatives(lpCell)){
+							if(lpcr->k > 0) filledCount++;
+						}
+						if(verbose) cout << *lpCell 
+							<< "--(filled neighbours)-->"
+								<< filledCount << "\n";
+						if(filledCount > maxCount){
 							lPsbltyCell = lpCell;
-							maxCount = count;
+							maxCount = filledCount;
 						}
 					}
 
-					cout << leastKey << " solutions: " << *lPsbltyCell << "\n";
+					if(verbose) cout << leastKey 
+						<< " solutions: " 
+							<< *lPsbltyCell << "\n";
 					set<int> connectedKs;
 					for(auto r:lPsbltyCell->relations){
 						connectedKs.insert(r.k);
 					}
 					int newK;
 					for(newK = 1; connectedKs.count(newK); newK++);
-					cout << "solution: " << newK << "\n";
+					if(verbose) cout << "solution: " << newK << "\n";
 					lPsbltyCell->k = newK;
 				} 
 			}
 			if(!solved){
-				cout << "What the heck is this puzzle fam!!!???\n";
+				cout << "PUnsolvable puzzle\n";
 			}
 		}
 
 };
 
 int main(){
-	Sudoku puzzleA(6,6,3,2);
-	vector<int> hints{
-		0, 0, 4, 3, 0, 0,
-		0, 3, 6, 0, 0, 0,
-		0, 0, 0, 5, 2, 4,
-		2, 4, 5, 0, 0, 0,
-		0, 0, 0, 4, 5, 0,
-		0, 0, 1, 6, 0, 0
-	};
+	cout << "Please enter width of sudoku puzzle: ";
+	int width;
+	cin >> width;
+	cout << "Please enter height of the sudoku puzzle: ";
+	int height;
+	cin >> height;
+
+	cout << "Please enter group width of sudoku puzzle: ";
+	int gwidth;
+	cin >> gwidth;
+
+	cout << "Please enter group height of the sudoku puzzle: ";
+	int gheight;
+	cin >> gheight;
+
+	Sudoku puzzleA(width,height,gwidth,gheight);
+
+	puzzleA.draw();
+
+	cout << "Please enter the number of the hints: ";
+	int hintNum;
+	cin >> hintNum;
+
+	set<int> hintIndx;
+	int index;
+
+	if(hintNum > 0){
+		cout << "Please enter the postion (by index 1) of the hints: ";
+	}
+
+	for(int i = 0; i < hintNum; i++){
+		cin >> index;
+		hintIndx.insert(index-1);
+	}
+
+	vector<int> hints;
+	int val;
+	for(int i = 0; i < width * height; i++){
+		if (hintIndx.count(i) == 0) {hints.push_back(0); continue;};
+		do{ 
+			cout << "Enter value at position " << i + 1 << ": " ; 
+			cin >> val;
+			if(val > gwidth*gheight){
+				cout << val << " does not fit in this puzzle. Please try again: \n";
+			}
+		} while (val>gwidth*gheight);
+		hints.push_back(val);
+	}
+
 	puzzleA.populate(hints);
 	puzzleA.solve();
+	puzzleA.draw();
 }
