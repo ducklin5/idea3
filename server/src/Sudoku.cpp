@@ -90,7 +90,7 @@ class Sudoku {
 			hLine();
 		}
 
-		void solveStep1(){
+		void makeRelations(){
 			vector<Cell*> cells = graph.getCellPtrs();
 			for(auto A: cells){
 				if (A->k == 0) continue;
@@ -122,7 +122,7 @@ class Sudoku {
 			return psbltyMap;
 		}
 
-		void solveStep3(intVecCellMap psbltyMap){
+		void solveOnePsblty(intVecCellMap psbltyMap){
 			// get the cell
 			for (auto pCell:psbltyMap[1]){
 				if(verbose) cout << "one solution: " << *pCell << "\n";
@@ -138,12 +138,44 @@ class Sudoku {
 			}
 
 		}
+		
+		void solveLeastPsblty(intVecCellMap psbltyMap, int leastKey){
+			vector<Cell*> lPsbltyCells = psbltyMap[leastKey];
+			// get the best candidate
+			int maxCount = -1; Cell* lPsbltyCell;
+			for(auto lpCell : lPsbltyCells){
+				int filledCount = 0;
+				for(auto lpcr : getRelatives(lpCell)){
+					if(lpcr->k > 0) filledCount++;
+				}
+				if(verbose) cout << *lpCell 
+					<< "--(filled neighbours)-->"
+						<< filledCount << "\n";
+				if(filledCount > maxCount){
+					lPsbltyCell = lpCell;
+					maxCount = filledCount;
+				}
+			}
+
+			if(verbose) cout << leastKey 
+				<< " solutions: " 
+					<< *lPsbltyCell << "\n";
+			set<int> connectedKs;
+			for(auto r:lPsbltyCell->relations){
+				connectedKs.insert(r.k);
+			}
+			int newK;
+			for(newK = 1; connectedKs.count(newK); newK++);
+			if(verbose) cout << "solution: " << newK << "\n";
+					lPsbltyCell->k = newK;
+
+		}
 
 		void solve(){
 			bool solved = false;
 			while(!solved){
 				// make all neccesary relations
-				solveStep1();
+				makeRelations();
 				// get the psbltyMap
 				intVecCellMap psbltyMap = getPsbltyMap();
 				if(verbose){
@@ -167,36 +199,9 @@ class Sudoku {
 				int leastKey = psbltyMap.begin()->first;
 				if(verbose) cout << "least posibilities: " << leastKey << "\n";
 				if (leastKey == 1){
-					solveStep3(psbltyMap);
+					solveOnePsblty(psbltyMap);
 				} else {
-					vector<Cell*> lPsbltyCells = psbltyMap[leastKey];
-					// get the best candidate
-					int maxCount = -1; Cell* lPsbltyCell;
-					for(auto lpCell : lPsbltyCells){
-						int filledCount = 0;
-						for(auto lpcr : getRelatives(lpCell)){
-							if(lpcr->k > 0) filledCount++;
-						}
-						if(verbose) cout << *lpCell 
-							<< "--(filled neighbours)-->"
-								<< filledCount << "\n";
-						if(filledCount > maxCount){
-							lPsbltyCell = lpCell;
-							maxCount = filledCount;
-						}
-					}
-
-					if(verbose) cout << leastKey 
-						<< " solutions: " 
-							<< *lPsbltyCell << "\n";
-					set<int> connectedKs;
-					for(auto r:lPsbltyCell->relations){
-						connectedKs.insert(r.k);
-					}
-					int newK;
-					for(newK = 1; connectedKs.count(newK); newK++);
-					if(verbose) cout << "solution: " << newK << "\n";
-					lPsbltyCell->k = newK;
+					solveLeastPsblty(psbltyMap, leastKey);
 				} 
 			}
 			if(!solved){
@@ -206,57 +211,3 @@ class Sudoku {
 
 };
 
-int main(){
-	cout << "Please enter width of sudoku puzzle: ";
-	int width;
-	cin >> width;
-	cout << "Please enter height of the sudoku puzzle: ";
-	int height;
-	cin >> height;
-
-	cout << "Please enter group width of sudoku puzzle: ";
-	int gwidth;
-	cin >> gwidth;
-
-	cout << "Please enter group height of the sudoku puzzle: ";
-	int gheight;
-	cin >> gheight;
-
-	Sudoku puzzleA(width,height,gwidth,gheight);
-
-	puzzleA.draw();
-
-	cout << "Please enter the number of the hints: ";
-	int hintNum;
-	cin >> hintNum;
-
-	set<int> hintIndx;
-	int index;
-
-	if(hintNum > 0){
-		cout << "Please enter the postion (by index 1) of the hints: ";
-	}
-
-	for(int i = 0; i < hintNum; i++){
-		cin >> index;
-		hintIndx.insert(index-1);
-	}
-
-	vector<int> hints;
-	int val;
-	for(int i = 0; i < width * height; i++){
-		if (hintIndx.count(i) == 0) {hints.push_back(0); continue;};
-		do{ 
-			cout << "Enter value at position " << i + 1 << ": " ; 
-			cin >> val;
-			if(val > gwidth*gheight){
-				cout << val << " does not fit in this puzzle. Please try again: \n";
-			}
-		} while (val>gwidth*gheight);
-		hints.push_back(val);
-	}
-
-	puzzleA.populate(hints);
-	puzzleA.solve();
-	puzzleA.draw();
-}

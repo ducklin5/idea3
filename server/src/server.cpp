@@ -323,11 +323,11 @@ int main(int argc, char** argv )
 			Mat thresh  = threshold(im,3);
 			Mat blobs = blobExtract(thresh, cellStats);
 			
-			cv::threshold(im,im, 200, 255, THRESH_TOZERO_INV);
-			printf( "%3i: ", index + 1 );
+			//cv::threshold(im,im, 200, 255, THRESH_TOZERO_INV);
 			if(cellStats.size() > 1){
+				printf( "%3i: ", index + 1 );
 				// Open input image with leptonica library
-				api->SetImage(im.data, im.cols, im.rows, 1, im.step);
+				api->SetImage(thresh.data, thresh.cols, thresh.rows, 1, thresh.step);
 				// Get OCR result
 				outText = api->GetUTF8Text();
 				
@@ -335,13 +335,13 @@ int main(int argc, char** argv )
 				
 				if(outText.length() > 0){
 					imshow(to_string(index+1),im);
-					//printf("\033[1;46;30m%3i \033[0m", stoi(outText));
+					printf("\033[1;46;30m%3i \033[0m", stoi(outText));
 				} else {
-					//cout << "    ";
+					cout << "    ";
 				}
 			}
-		cout <<"\n";
 		}
+		cout <<"\n";
 	}
 
 	api->End();
