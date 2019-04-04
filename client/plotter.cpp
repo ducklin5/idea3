@@ -174,6 +174,8 @@ void info(){
 	Serial.println(F("Commands:"));
 	Serial.println(F("G00 [X(steps)] [Y(steps)] [F(feedrate)]; Rapid linear move"));
 	Serial.println(F("G01 [X(steps)] [Y(steps)] [F(feedrate)]; - linear move"));
+	Serial.println(F("G02 [X(steps)] [Y(steps)] [I(center X relative)] [J(center Y relative)]; - CW Rot"));
+	Serial.println(F("G03 [X(steps)] [Y(steps)] [I(center X relative)] [J(center Y relative)]; - CCW Rot"));
 	Serial.println(F("G04 P[seconds]; - delay"));
 	Serial.println(F("G90; - absolute mode"));
 	Serial.println(F("G91; - relative mode"));
@@ -186,7 +188,7 @@ void info(){
 
 void ready() {
 	bufferCount=0; // clear input buffer
-	Serial.println("R >"); // signal ready to receive input
+	Serial.print("R > "); // signal ready to receive input
 }
 
 void setup() {

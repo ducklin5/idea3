@@ -261,6 +261,7 @@ int main(int argc, char** argv )
 {
 	// Read image
 	Mat orig = imread(argv[1], IMREAD_COLOR );
+	imshow("Orig", orig);
 
 	Mat gray; cvtColor(orig, gray, CV_RGB2GRAY);
 
@@ -283,7 +284,7 @@ int main(int argc, char** argv )
 	vector<Point2f> sdkCorners = getSudokuCorners(blobs, maxlbl);
 
 	// create a square matrix to put the puzzle in
-	Mat puzzle = Mat( 480, 480, CV_32FC1, Scalar(0));
+	Mat puzzle = Mat( 240, 240, CV_32FC1, Scalar(0));
 
 	// get the corners of the puzzle image
 	vector<Point2f> puzzleCorners = getCorners(puzzle.size()); 
@@ -320,25 +321,25 @@ int main(int argc, char** argv )
 			int startY = hPos[j] + rHeight*padding;
 
 			Mat im = puzzle(Rect(startX, startY, rWidth*(1.0-padding), rHeight*(1.0-padding)));
-			Mat thresh  = threshold(im,3);
+			Mat thresh  = threshold(im,2);
 			Mat blobs = blobExtract(thresh, cellStats);
 			
 			//cv::threshold(im,im, 200, 255, THRESH_TOZERO_INV);
+			printf( "%3i: ", index + 1 );
 			if(cellStats.size() > 1){
-				printf( "%3i: ", index + 1 );
 				// Open input image with leptonica library
 				api->SetImage(thresh.data, thresh.cols, thresh.rows, 1, thresh.step);
 				// Get OCR result
 				outText = api->GetUTF8Text();
 				
-				cout << outText.c_str();
-				
-				if(outText.length() > 0){
-					imshow(to_string(index+1),im);
-					printf("\033[1;46;30m%3i \033[0m", stoi(outText));
+				int num = atoi(outText.c_str());
+				if(outText.length() > 0 and num > 0 and num <= sdkCols * sdkRows){
+					printf("\033[1;46;30m%3i \033[0m",num);
 				} else {
 					cout << "    ";
 				}
+			} else {
+				cout << "    ";
 			}
 		}
 		cout <<"\n";
