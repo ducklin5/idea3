@@ -1,4 +1,6 @@
 #include <opencv2/opencv.hpp>
+#include <tesseract/baseapi.h>
+#include <leptonica/allheaders.h>
 #include <algorithm>
 #include <set>
 #include <map>
@@ -44,7 +46,7 @@ Mat blobExtract( Mat binImg, map<int,int>& stats){
 	Mat blobImg(binImg.size(), CV_32SC1, Scalar(0));
 	int label = 0;
 	map <int,set<int>> labelEqvs;
-	
+
 	// first pass
 	for (int y = 0; y < binImg.rows; y++){
 		for (int x = 0; x < binImg.cols; x++){
@@ -87,17 +89,17 @@ Mat blobExtract( Mat binImg, map<int,int>& stats){
 			//cout << "label: " << label << endl;
 		}
 	}
-/*
-	for (auto const& eqv : labelEqvs) {
-		cout << eqv.first << ':';
-		for (auto const& lbl : eqv.second){
-			cout << lbl << ", ";
-		}
-		cout << std::endl ;
-	}
-*/
+	/*
+	   for (auto const& eqv : labelEqvs) {
+	   cout << eqv.first << ':';
+	   for (auto const& lbl : eqv.second){
+	   cout << lbl << ", ";
+	   }
+	   cout << std::endl ;
+	   }
+	   */
 	map <int,int> simpleEqvs;
-	
+
 	for (auto const& eqv: labelEqvs){
 		int crnt = eqv.first;
 		while (labelEqvs[crnt].size() > 0){
@@ -109,18 +111,19 @@ Mat blobExtract( Mat binImg, map<int,int>& stats){
 		}
 		simpleEqvs[eqv.first] = crnt;
 	}
-/*
-	for (auto const& eqv : simpleEqvs) {
-		cout << eqv.first << " : ";
-		cout << eqv.second << '\n';
-	}
-*/
+	/*
+	   for (auto const& eqv : simpleEqvs) {
+	   cout << eqv.first << " : ";
+	   cout << eqv.second << '\n';
+	   }
+	   */
 	// second pass
 	for (int y = 0; y < blobImg.rows; y++){
 		for (int x = 0; x < blobImg.cols; x++){
 			int& currentLabel = blobImg.at<int>(y,x);
 			// get the first element of the set/ the lowest equivalent
 			currentLabel = simpleEqvs[currentLabel];
+			// update the number of pixes in this label
 			if (stats.count(currentLabel)==0) {
 				stats[currentLabel] = 1;
 			} else {
@@ -128,18 +131,19 @@ Mat blobExtract( Mat binImg, map<int,int>& stats){
 			}
 		}
 	}
-/*
-	for (auto const& eqv : stats) {
-		cout << eqv.first << " : ";
-		cout << eqv.second << '\n';
-	}
-*/
-	cout << stats.size() << " labels\n";;
+	/*
+	   for (auto const& eqv : stats) {
+	   cout << eqv.first << " : ";
+	   cout << eqv.second << '\n';
+	   }
+	   
+	cout << stats.size() << " labels\n";
+	*/
 	return blobImg;
 }
 
 template <typename fType, typename sType>
-bool comparePair2 (const pair<fType, sType>& p1, const pair<fType, sType>& p2){
+bool compare2nd (const pair<fType, sType>& p1, const pair<fType, sType>& p2){
 	return p1.second < p2.second;
 }
 
@@ -151,13 +155,114 @@ bool fits (int num, set<int> vec, int thresh ){
 	return pass;
 }
 
+vector<Point2f> getCorners(Size pSize){
+	vector<Point2f> corners = {
+		Point2f(0,0),
+		Point2f(pSize.width, 0),
+		Point2f(pSize.height, pSize.width),
+		Point2f(0, pSize.height)
+	};
+	return corners;
+}
+
+vector<Point2f> getSudokuCorners(Mat blobs, int puzzlelbl){
+	// isolate/mask the blob of label `puzzlelbl`
+	// and calculate the distances from each img corner to each mask pixel
+	
+	// save the corners of the original image
+	vector<Point2f> imageConers = getCorners(blobs.size());
+
+	// this is where the mask image will go
+	Mat puzzleMask(blobs.size(), CV_8UC1, Scalar(0));
+
+	// create 4 matrices to hold the distances for each pixel
+	Mat dists[4];
+	for (int i=0; i<4; i++) dists[i] = Mat(blobs.size(), CV_32SC1, Scalar(0));
+
+	// for each pixel
+	for (int y = 0; y < blobs.rows; y++){ for (int x = 0; x < blobs.cols; x++){
+		// get its label (ref)
+		int& current = blobs.at<int>(y,x);
+		// get it mask value (ref)
+		uchar& mcurrent = puzzleMask.at<uchar>(y,x);
+		
+		if (current == puzzlelbl){
+			mcurrent = 1; // we care about it
+			// get its distance from each corner
+			for(int i=0; i<4; i++)
+				dists[i].at<int>(y,x) = abs(y - imageConers[i].y) + abs(x - imageConers[i].x);
+		} else {
+			mcurrent = 0; // we dont care about it
+		}
+	} }
+
+	//	for(int i = 0; i < 4; i++){
+	//		Mat test;
+	//		dists[i].convertTo(test, CV_8UC1, 0.2);
+	//		imshow(to_string(i), test);
+	//	}
+	
+	// find the minimum for each corner
+	Point sdkCorners[4];
+	for(int i = 0; i < 4; i++){
+		minMaxLoc(dists[i], NULL, NULL, &sdkCorners[i], NULL, puzzleMask);
+	}
+
+	// convert the point type
+	vector<Point2f> sdkCornersF (4);
+	for(int i = 0; i < 4; i++) sdkCornersF[i] = sdkCorners[i];
+	return sdkCornersF;
+}
+
+void getHVLinePos(Mat image, vector<int>& vPos, vector<int>& hPos){
+	cv::Mat imageC;
+	cv::Canny(image,imageC,30,20);
+
+	Mat imageL = Mat(image.size(), CV_32FC1, Scalar(0));
+
+	vector<Vec2f> lines;
+	HoughLines(imageC, lines, 1, CV_PI/180, 80, 0, 0 );
+
+	set<int> xs = {0, image.cols-1};
+	set<int> ys = {0, image.rows-1};
+	for( size_t i = 0; i < lines.size(); i++ ){
+		float rho = lines[i][0], theta = lines[i][1];
+		double a = cos(theta), b = sin(theta);
+		int x0 = a*rho, y0 = b*rho;
+
+		float gap = 0.05*image.cols;
+		int degThresh = 2;
+		theta  = theta * 180/CV_PI;
+		bool draw = false;
+		if( (theta < degThresh or 180 - degThresh < theta) and fits(x0, xs, gap)) {
+			xs.insert(x0); draw = true;
+		}
+
+		if( abs(theta - 90) < degThresh and fits(y0, ys, gap)) {
+			ys.insert(y0); draw = 1;
+		}
+
+			if (draw){
+				Point pt1, pt2;
+				pt1.x = cvRound(x0 + 1000*(-b));
+				pt1.y = cvRound(y0 + 1000*(a));
+				pt2.x = cvRound(x0 - 1000*(-b));
+				pt2.y = cvRound(y0 - 1000*(a));
+				line( imageL, pt1, pt2, 255, 1);
+			}
+	}
+	imshow("imageC", imageC);
+	imshow("imageL", imageL);
+	vPos = vector<int>(xs.begin(), xs.end());
+	hPos = vector<int>(ys.begin(), ys.end());
+}
+
 int main(int argc, char** argv )
 {
 	// Read image
 	Mat orig = imread(argv[1], IMREAD_COLOR );
-	
-	Mat gray;
-	cvtColor(orig, gray, CV_RGB2GRAY);
+
+	Mat gray; cvtColor(orig, gray, CV_RGB2GRAY);
 
 	// radius based thersholding
 	Mat black = threshold(gray, 5);
@@ -166,134 +271,80 @@ int main(int argc, char** argv )
 	// graph theory
 	map<int, int> stats;
 	Mat blobs = blobExtract(black, stats);
-	
+
 	// find the blob label with the most elements
 	//https://stackoverflow.com/questions/30611709/find-element-with-max-value-from-stdmap
 	stats[0] = 0;
-	auto maxlbl_count = std::max_element(stats.begin(), stats.end(), comparePair2<int,int>);
+	auto maxlbl_count = std::max_element(stats.begin(), stats.end(), compare2nd<int,int>);
 	int maxlbl = maxlbl_count -> first;
 	cout << "maxlbl: " << maxlbl << endl;
 	
-	// isolate the largest blob
-	// and calculate the distances from the img corners to the largest blob pixels
+	// get the corners of the original sudoku puzzle
+	vector<Point2f> sdkCorners = getSudokuCorners(blobs, maxlbl);
 
-	// this is where the edit image will go
-	Mat majorBlob(blobs.size(), CV_8UC1, Scalar(0));
-	// save the corners of the image
-	vector<Point2f> imageConers = {
-		Point(0,0),
-		Point(blobs.cols, 0),
-		Point(blobs.cols, blobs.rows),
-		Point(0, blobs.rows)
-	};
-	// create 4 matrices to hold the distances for each pixel
-	Mat dists[4];
-		for (int i=0; i<4; i++)
-			dists[i] = Mat(blobs.size(), CV_32SC1, Scalar(0));
-	
+	// create a square matrix to put the puzzle in
+	Mat puzzle = Mat( 480, 480, CV_32FC1, Scalar(0));
 
-	for (int y = 0; y < blobs.rows; y++){
-		for (int x = 0; x < blobs.cols; x++){
-			int& current = blobs.at<int>(y,x);
-			uchar& mcurrent = majorBlob.at<uchar>(y,x);
-			if (current == maxlbl){
-				mcurrent = 1;
-				for(int i=0; i<4; i++){
-					dists[i].at<int>(y,x) = abs(y - imageConers[i].y) + abs(x - imageConers[i].x);
-				}
-			} else {
-				mcurrent = 0;
-			}
-		}
-	}
-	
-//	for(int i = 0; i < 4; i++){
-//		Mat test;
-//		dists[i].convertTo(test, CV_8UC1, 0.2);
-//		imshow(to_string(i), test);
-//	}
+	// get the corners of the puzzle image
+	vector<Point2f> puzzleCorners = getCorners(puzzle.size()); 
 
-	// find the minimum for each corner
-	Point sdkCorners[4];
-	for(int i = 0; i < 4; i++){
-		minMaxLoc(dists[i], NULL, NULL, &sdkCorners[i], NULL, majorBlob);
-	}
-	
-	vector<Point2f> sdkCornersF (4);
-	for(int i = 0; i < 4; i++)
-		sdkCornersF[i] = sdkCorners[i];
-	
-	Size pSize(240,240);
-	Mat puzzle = Mat( pSize, CV_32FC1, Scalar(0));
-
-	imageConers = {
-		Point2f(0,0),
-		Point2f(pSize.width, 0),
-		Point2f(pSize.height, pSize.width),
-		Point2f(0, pSize.height)
-	};
-
-	Mat HTranform = findHomography(sdkCornersF, imageConers,  RANSAC);
-	
-	warpPerspective(gray, puzzle, HTranform, pSize);
+	// transform the original sudoku puzzle to the new square matrix
+	Mat HTranform = findHomography(sdkCorners, puzzleCorners,  RANSAC);
+	warpPerspective(gray, puzzle, HTranform, puzzle.size());
 	imshow("puzzle", puzzle);
-	 
-	cv::Mat puzzleC;
-	cv::Canny(puzzle,puzzleC,30,20);
 	
-	Mat puzzleL = Mat( pSize, CV_32FC1, Scalar(0));
-
-    vector<Vec2f> lines;
-	HoughLines(puzzleC, lines, 1, CV_PI/180, 80, 0, 0 );
+	// get the positions of all the vertival and horizontal lines
+	vector<int> vPos, hPos;
+	getHVLinePos(puzzle, vPos, hPos);
 	
-	set<int> xs = {0, pSize.width-1};
-	set<int> ys = {0, pSize.height-1};
-	for( size_t i = 0; i < lines.size(); i++ ){
-		float rho = lines[i][0], theta = lines[i][1];
-		double a = cos(theta), b = sin(theta);
-		int x0 = a*rho, y0 = b*rho;
-		
-		int gap = 15;
-		int degThresh = 2;
-		theta  = theta * 180/CV_PI;
-
-		if( (theta < degThresh or 180 - theta < degThresh )and fits(x0, xs, gap)) {
-			xs.insert(x0);
-		}
-		
-		if( abs(theta - 90) < degThresh and fits(y0, ys, gap)) {
-			ys.insert(y0);
-		}
-
-//		if (draw){
-//			Point pt1, pt2;
-//			pt1.x = cvRound(x0 + 1000*(-b));
-//			pt1.y = cvRound(y0 + 1000*(a));
-//			pt2.x = cvRound(x0 - 1000*(-b));
-//			pt2.y = cvRound(y0 - 1000*(a));
-//			line( puzzleL, pt1, pt2, 255, 1);
-//		}
-	}
-	imshow("puzzleC", puzzleC);
-	//imshow("puzzleL", puzzleL);
-	vector<int> xv(xs.begin(), xs.end());
-	vector<int> yv(ys.begin(), ys.end());
-	
-	int sdkCols = yv.size()-1;
-	int sdkRows = xv.size()-1;
+	// calculate the number of cols and rows
+	int sdkCols = vPos.size()-1;
+	int sdkRows = hPos.size()-1;
 	cout << "sdkCols: " << sdkCols << "\n";
 	cout << "sdkRows: " << sdkRows << "\n";
 
-	Mat pBoxes[sdkCols][sdkRows];
+	map<int, int> cellStats;
+	tesseract::TessBaseAPI *api = new tesseract::TessBaseAPI();
+	// Initialize tesseract-ocr with English, without specifying tessdata path
+	api->Init(NULL, "eng");
+	api->SetVariable("tessedit_char_whitelist", "0123456789");
 
-	for(int y = 0; y<sdkCols; y++){
-		for(int x = 0; x<sdkCols; x++){
-			pBoxes[y][x] = puzzle(Rect(xv[x], yv[y], xv[x+1]-xv[x], yv[y+1]-yv[y]));
-			pBoxes[y][x] = threshold(pBoxes[y][x], 6);
-			imshow(to_string(y*sdkCols+x), pBoxes[y][x]);
+	float padding = 0.15;
+	string outText;
+	for(int j = 0; j<sdkRows; j++){
+		for(int i = 0; i<sdkCols; i++){
+			int index = i+sdkRows*j;
+			int rWidth = vPos[i+1]-vPos[i];
+			int rHeight = hPos[j+1]-hPos[j];
+			int startX = vPos[i] + rWidth*padding;
+			int startY = hPos[j] + rHeight*padding;
+
+			Mat im = puzzle(Rect(startX, startY, rWidth*(1.0-padding), rHeight*(1.0-padding)));
+			Mat thresh  = threshold(im,3);
+			Mat blobs = blobExtract(thresh, cellStats);
+			
+			cv::threshold(im,im, 200, 255, THRESH_TOZERO_INV);
+			printf( "%3i: ", index + 1 );
+			if(cellStats.size() > 1){
+				// Open input image with leptonica library
+				api->SetImage(im.data, im.cols, im.rows, 1, im.step);
+				// Get OCR result
+				outText = api->GetUTF8Text();
+				
+				cout << outText.c_str();
+				
+				if(outText.length() > 0){
+					imshow(to_string(index+1),im);
+					//printf("\033[1;46;30m%3i \033[0m", stoi(outText));
+				} else {
+					//cout << "    ";
+				}
+			}
+		cout <<"\n";
 		}
 	}
 
+	api->End();
 	waitKey(0);
 	exit(0);
 }
