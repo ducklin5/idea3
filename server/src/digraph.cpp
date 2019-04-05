@@ -1,13 +1,14 @@
-#include <map>
-#include <vector>
-#include <utility>
-#include <iostream>
-#include <cassert>
+#include <map> // primary cell data strcute
+#include <vector> // several uses
+#include <utility> // pair
+#include <iostream> // for printing cell structures
+#include <cassert> // assert, error check
 
 using namespace std;
 
 // A vertex structure
 struct Cell;
+
 // An edge structure
 struct Relation{
 	Cell* from;
@@ -21,9 +22,11 @@ struct Relation{
 };
 
 struct Cell{
-	int x;
+	// position properties
+	int x; 
 	int y;
 	int n;
+	// value property
 	int k;
 	vector<Relation> relations;
 	Cell(int xvar, int yvar, int nvar = 0, int kvar = 0) {
@@ -36,13 +39,17 @@ struct Cell{
 		Relation newRelation(this, to, kVar);
 		relations.push_back(newRelation);
 	}
+	// allow override << operator for cout
 	friend std::ostream& operator<<(std::ostream&, const Cell&);
 };
+
+// for printing a Cell object
 ostream& operator<< (ostream& os, const Cell& sElem) {
 	os <<"<"<< sElem.x << ", " << sElem.y << ", " << sElem.n << ">[" << sElem.k << "]";
 	return os;
 }
 
+// graph class using Cell vertex and Relation Edges
 class CellGraph{
 	public:
 		Cell* addCell(int x, int y, int n = 0){
