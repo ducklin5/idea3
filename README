@@ -67,7 +67,7 @@ usage:
 -- Wiring --
 	* Hardware parts can be built from here:
 		https://www.thingiverse.com/thing:1188744
-	* If required, we can also be submited the hardware
+	* If required, we can also submit the hardware
 	* x axis servo pin - 10
 	* y axis servo pin - 9
 	* z axis servo pin - 8
