@@ -1,6 +1,6 @@
 #include <iostream>
 #include <set>
-#include "digraph.cpp"
+#include "digraph.h"
 
 bool verbose = 0;
 
@@ -64,26 +64,26 @@ class Sudoku {
 			return relatives;
 		}
 		void hLine(){
-			cout << "  ";
-			for(int i = 0; i < cols; i++)
-				cout << "--------";
-			cout << "\n";
+			for(int i = 0; i < cols; i++){
+				if(i % gwidth == 0) cout << "+";
+				cout << "-----------";
+			}
+			cout << "+\n";
 		}
 		void draw (){
 			for(int j = 0; j < rows; j++){
-				if(j % gheight == 0){
-					hLine();
-				}
+				if(j % gheight == 0) hLine();
 				for(int i = 0; i < cols; i++){
-					if(i % gwidth == 0)
-						cout << " |";
-					int k = graph.getCell(i,j)->k;
-					cout << "\t";
-					if(k==0) cout << "*";
-					else cout << k;
+					if(i % gwidth == 0) cout << "|";
+					
+					printf("[%3i] ",j*rows+i+1);
 
-					if(i+1 == cols)
-						cout << " |";
+					int k = graph.getCell(i,j)->k;
+					
+					if( k != 0) printf("\033[1;46;30m %3i \033[0m",k);
+					else cout << "  *  ";
+
+					if(i+1 == cols) cout << "|";
 				}
 				cout << "\n";
 			}
@@ -136,7 +136,6 @@ class Sudoku {
 				if(verbose) cout << "solution: " << newK << "\n";
 				pCell->k = newK;
 			}
-
 		}
 		
 		void solveLeastPsblty(intVecCellMap psbltyMap, int leastKey){

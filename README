@@ -1,0 +1,83 @@
+Name: Adekunle Toluwani & Azeez  Abass
+ID's: 1538562 & 1542780
+CMPUT 275 EB1, Winter 2019
+Final Project
+-----------------------
+Goal:
+	A program that solves and draws the solution of an input sudoku picture.
+
+Included Files:
+├── client
+│   ├── Makefile
+│   ├── plotter.cpp
+│   ├── Servo.cpp
+│   ├── Servo.h
+│   └── ServoTimers.h
+├── README
+└── server
+    ├── Makefile
+    ├── smpl0.jpg
+    ├── smpl1.jpg
+    ├── smpl2.jpg
+    ├── smpl3.jpg
+    ├── smpl4.jpg
+    └── src
+        ├── digraph.h
+        ├── main.cpp
+        ├── Sudoku.cpp
+        ├── sudokuReader.cpp
+        └── sudokuReader.h
+
+* client/plotter.cpp
+	This is the main cpp file for the arduino xy plotter hardware.
+	Servo.cpp, Servo.h, and ServoTimers.h are the standard arduino library for supporting servo hardware.
+	
+* server/src/main.cpp
+	This is the main server file that solves a sudoku puzzle from a picture or from user input
+
+* server/src/sudokuReader.cpp(.h)
+	contains functions used to read the data from any sudoku image
+
+* server/src/Sudoku.cpp
+	the Sudoku class, has several methods for managing a sudoku object,
+	including the solve method which automatically solves (if solvable) the object.
+
+* server/src/diagraph.h
+	a custom graph class, made to support the Sudoku class.
+
+-- Program Usgae --
+Please install the image processing and ocr libraries with:
+	sudo apt-get install libopencv-dev python3-opencv
+	sudo apt-get install -y tesseract-ocr libtesseract-dev libleptonica-dev
+
+usage:
+	* server
+		cd server && make
+		#for raw user input just run
+		./solver
+		
+		#to solve an image run
+		./solver path/to/image.jpg
+		./solver smpl0.jpg
+	* client
+		cd client && make upload
+		make serial
+		#command the plotter with gcode
+
+-- Wiring --
+	* Hardware parts can be built from here:
+		https://www.thingiverse.com/thing:1188744
+	* If required, we can also be submited the hardware
+	* x axis servo pin - 10
+	* y axis servo pin - 9
+	* z axis servo pin - 8
+	* brown servo wire - ground
+	* red servo wire - 5v
+
+-- Notes --
+	* Although the plotter works on its own, we were unable to implement the sudoku puzzle drawing part
+	* The optical character reader in the sudokuReader is not very accurate as it has to be trained for different fonts
+	* sample images were included to test the the program
+	* the best image is smpl0.jpg
+	* sudokuReader assumes that the biggesst object in the picture is the sudoku puzzle
+	* It also assumes that the sudoku puzzle in teh image is oriented the same way as the image
